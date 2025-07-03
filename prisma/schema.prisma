@@ -1,0 +1,289 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Agricultural Market Committee model
+model Committee {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  code        String   @unique
+  district    String   @default("KAKINADA")
+  state       String   @default("Andhra Pradesh")
+  hasCheckposts Boolean @default(false)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+
+  // Relationships
+  checkposts Checkpost[]
+  receipts   Receipt[]
+  targets    Target[]
+  users      UserCommittee[]
+
+  @@map("committees")
+  @@index([code])
+  @@index([name])
+  @@index([isActive])
+}
+
+// Checkpost model for committees that have checkposts
+model Checkpost {
+  id          String   @id @default(cuid())
+  name        String
+  committeeId String   @map("committee_id")
+  location    String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+
+  // Relationships
+  committee Committee @relation(fields: [committeeId], references: [id], onDelete: Cascade)
+  receipts  Receipt[]
+  targets   CheckpostTarget[]
+
+  @@unique([name, committeeId])
+  @@map("checkposts")
+  @@index([committeeId])
+  @@index([isActive])
+}
+
+// Receipt model for market fee transactions
+model Receipt {
+  id                      String      @id @default(cuid())
+  bookNumber              String      @map("book_number")
+  receiptNumber           String      @map("receipt_number")
+  date                    DateTime
+  traderName              String      @map("trader_name")
+  payeeName               String      @map("payee_name")
+  commodity               String
+  transactionValue        Decimal     @map("transaction_value") @db.Decimal(15, 2)
+  marketFee               Decimal     @map("market_fee") @db.Decimal(15, 2)
+  natureOfReceipt         ReceiptType @map("nature_of_receipt")
+  natureOfReceiptOther    String?     @map("nature_of_receipt_other")
+  collectionLocation      CollectionLocation @map("collection_location")
+  collectionLocationOther String?     @map("collection_location_other")
+  checkpostId             String?     @map("checkpost_id")
+  supervisorName          String?     @map("supervisor_name")
+  committeeId             String      @map("committee_id")
+  financialYear           String      @map("financial_year")
+  remarks                 String?
+  isActive                Boolean     @default(true)
+  createdAt               DateTime    @default(now()) @map("created_at")
+  updatedAt               DateTime    @updatedAt @map("updated_at")
+  deletedAt               DateTime?   @map("deleted_at")
+  createdBy               String?     @map("created_by")
+  updatedBy               String?     @map("updated_by")
+
+  // Relationships
+  committee Committee  @relation(fields: [committeeId], references: [id], onDelete: Restrict)
+  checkpost Checkpost? @relation(fields: [checkpostId], references: [id], onDelete: SetNull)
+
+  @@unique([bookNumber, receiptNumber, committeeId])
+  @@map("receipts")
+  @@index([date])
+  @@index([committeeId])
+  @@index([checkpostId])
+  @@index([financialYear])
+  @@index([natureOfReceipt])
+  @@index([commodity])
+  @@index([isActive])
+}
+
+// Target model for yearly and monthly targets
+model Target {
+  id            String   @id @default(cuid())
+  committeeId   String   @map("committee_id")
+  financialYear String   @map("financial_year")
+  yearlyTarget  Decimal  @map("yearly_target") @db.Decimal(15, 2)
+  description   String?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  deletedAt     DateTime? @map("deleted_at")
+  createdBy     String?  @map("created_by")
+  updatedBy     String?  @map("updated_by")
+
+  // Relationships
+  committee        Committee         @relation(fields: [committeeId], references: [id], onDelete: Cascade)
+  monthlyTargets   MonthlyTarget[]
+  checkpostTargets CheckpostTarget[]
+
+  @@unique([committeeId, financialYear])
+  @@map("targets")
+  @@index([financialYear])
+  @@index([isActive])
+}
+
+// Monthly target breakdown
+model MonthlyTarget {
+  id       String @id @default(cuid())
+  targetId String @map("target_id")
+  month    Month
+  amount   Decimal @db.Decimal(15, 2)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relationships
+  target Target @relation(fields: [targetId], references: [id], onDelete: Cascade)
+
+  @@unique([targetId, month])
+  @@map("monthly_targets")
+  @@index([month])
+}
+
+// Checkpost-wise target breakdown
+model CheckpostTarget {
+  id          String @id @default(cuid())
+  targetId    String @map("target_id")
+  checkpostId String @map("checkpost_id")
+  month       Month
+  amount      Decimal @db.Decimal(15, 2)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relationships
+  target    Target    @relation(fields: [targetId], references: [id], onDelete: Cascade)
+  checkpost Checkpost @relation(fields: [checkpostId], references: [id], onDelete: Cascade)
+
+  @@unique([targetId, checkpostId, month])
+  @@map("checkpost_targets")
+  @@index([month])
+}
+
+// User management for multi-user access
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  password  String   // Should be hashed
+  role      UserRole @default(USER)
+  isActive  Boolean  @default(true)
+  lastLogin DateTime? @map("last_login")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  // Relationships
+  committees UserCommittee[]
+
+  @@map("users")
+  @@index([email])
+  @@index([role])
+  @@index([isActive])
+}
+
+// Many-to-many relationship between users and committees
+model UserCommittee {
+  id          String @id @default(cuid())
+  userId      String @map("user_id")
+  committeeId String @map("committee_id")
+  permissions String[] // Array of permissions like ['read', 'write', 'delete']
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  // Relationships
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  committee Committee @relation(fields: [committeeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, committeeId])
+  @@map("user_committees")
+}
+
+// Audit log for tracking changes
+model AuditLog {
+  id          String    @id @default(cuid())
+  tableName   String    @map("table_name")
+  recordId    String    @map("record_id")
+  action      AuditAction
+  oldValues   Json?     @map("old_values")
+  newValues   Json?     @map("new_values")
+  userId      String?   @map("user_id")
+  ipAddress   String?   @map("ip_address")
+  userAgent   String?   @map("user_agent")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  @@map("audit_logs")
+  @@index([tableName])
+  @@index([recordId])
+  @@index([action])
+  @@index([createdAt])
+  @@index([userId])
+}
+
+// System configuration
+model SystemConfig {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String
+  dataType  String   @map("data_type") // 'string', 'number', 'boolean', 'json'
+  category  String   @default("general")
+  description String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("system_config")
+  @@index([category])
+  @@index([isActive])
+}
+
+// Enums
+enum ReceiptType {
+  MF     @map("mf")
+  OTHERS @map("others")
+
+  @@map("receipt_type")
+}
+
+enum CollectionLocation {
+  OFFICE     @map("office")
+  CHECKPOST  @map("checkpost")
+  SUPERVISOR @map("supervisor")
+
+  @@map("collection_location")
+}
+
+enum Month {
+  MAY       @map("may")
+  JUNE      @map("june")
+  JULY      @map("july")
+  AUGUST    @map("august")
+  SEPTEMBER @map("september")
+  OCTOBER   @map("october")
+  NOVEMBER  @map("november")
+  DECEMBER  @map("december")
+  JANUARY   @map("january")
+  FEBRUARY  @map("february")
+  MARCH     @map("march")
+  APRIL     @map("april")
+
+  @@map("month")
+}
+
+enum UserRole {
+  ADMIN      @map("admin")
+  MANAGER    @map("manager")
+  USER       @map("user")
+  VIEWER     @map("viewer")
+
+  @@map("user_role")
+}
+
+enum AuditAction {
+  CREATE @map("create")
+  UPDATE @map("update")
+  DELETE @map("delete")
+  LOGIN  @map("login")
+  LOGOUT @map("logout")
+
+  @@map("audit_action")
+}
