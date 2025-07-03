@@ -1,7 +1,7 @@
 'use client';
 
 import Navigation from '../../components/Navigation';
-import ReceiptEntry from '../../components/ReceiptEntry';
+import ReceiptEntry from '../../src/components/ReceiptEntry';
 
 export default function ReceiptsPage() {
   return (
