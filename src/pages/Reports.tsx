@@ -10,7 +10,7 @@ const Reports: React.FC = () => {
   const [targets] = useLocalStorage<TargetType[]>('targets', []);
   const [selectedYear, setSelectedYear] = useState<'2024-25' | '2025-26'>('2025-26');
   const [reportType, setReportType] = useLocalStorage<'market-fees' | 'checkpost' | 'commodity'>('reportType', 'market-fees');
-  const [selectedCommodity, setSelectedCommodity] = useLocalStorage<string>('selectedCommodity', '');
+  const [selectedCommodity, setSelectedCommodity] = useLocalStorage<string>('selectedCommodity', 'Rice');
   const [selectedMonth, setSelectedMonth] = useLocalStorage<string>('selectedMonth', 'May');
   const [selectedCommittee, setSelectedCommittee] = useLocalStorage<string>('selectedCommittee', 'all');
 
@@ -177,9 +177,12 @@ const Reports: React.FC = () => {
     return checkpostData;
   };
 
-  // Commodity-wise Report
+  // Commodity-wise Report - Updated to filter by selected commodity
   const generateCommodityData = () => {
-    const marketFeeReceipts = receipts.filter(r => r.natureOfReceipt === 'mf');
+    const marketFeeReceipts = receipts.filter(r => 
+      r.natureOfReceipt === 'mf' && 
+      r.commodity === selectedCommodity
+    );
     
     let committeesToInclude = committees;
     if (selectedCommittee !== 'all') {
@@ -189,14 +192,14 @@ const Reports: React.FC = () => {
     return committeesToInclude.map((committee, index) => {
       const committeeReceipts = marketFeeReceipts.filter(r => r.committeeId === committee.id);
       
-      // Current month receipts
+      // Current month receipts for selected commodity
       const currentMonthReceipts = committeeReceipts.filter(r => {
         const receiptDate = new Date(r.date);
         const receiptMonth = receiptDate.toLocaleString('default', { month: 'long' });
         return r.financialYear === selectedYear && receiptMonth === selectedMonth;
       });
 
-      // Progressive receipts up to current month
+      // Progressive receipts up to current month for selected commodity
       const monthIndex = months.indexOf(selectedMonth);
       const cumulativeMonths = monthIndex >= 0 ? months.slice(0, monthIndex + 1) : [selectedMonth];
       
@@ -206,27 +209,32 @@ const Reports: React.FC = () => {
         return r.financialYear === selectedYear && cumulativeMonths.includes(receiptMonth);
       });
 
-      // Calculate total collections
+      // Calculate collections for the selected commodity
       const totalCurrentMonth = currentMonthReceipts.reduce((sum, r) => sum + r.marketFee, 0);
       const totalProgressive = progressiveReceipts.reduce((sum, r) => sum + r.marketFee, 0);
+      const receiptCount = currentMonthReceipts.length;
+      const progressiveReceiptCount = progressiveReceipts.length;
 
-      // Calculate commodity-wise collections (example with different rates)
-      const prawnsCollection025 = totalCurrentMonth * 0.25 / 100; // 0.25% rate
-      const prawnsCollection050 = totalCurrentMonth * 0.50 / 100; // 0.50% rate
-      
-      const progressivePrawns025 = totalProgressive * 0.25 / 100;
-      const progressivePrawns050 = totalProgressive * 0.50 / 100;
+      // Calculate average transaction value
+      const avgTransactionValue = currentMonthReceipts.length > 0 
+        ? currentMonthReceipts.reduce((sum, r) => sum + r.transactionValue, 0) / currentMonthReceipts.length 
+        : 0;
+
+      const progressiveAvgTransactionValue = progressiveReceipts.length > 0
+        ? progressiveReceipts.reduce((sum, r) => sum + r.transactionValue, 0) / progressiveReceipts.length
+        : 0;
 
       return {
         slNo: index + 1,
         amcName: committee.name,
         amcCode: committee.code,
+        commodity: selectedCommodity,
         totalCurrentMonth: totalCurrentMonth / 100000,
-        prawnsCollection025: prawnsCollection025 / 100000,
-        prawnsCollection050: prawnsCollection050 / 100000,
+        receiptCount,
+        avgTransactionValue: avgTransactionValue / 100000,
         totalProgressive: totalProgressive / 100000,
-        progressivePrawns025: progressivePrawns025 / 100000,
-        progressivePrawns050: progressivePrawns050 / 100000
+        progressiveReceiptCount,
+        progressiveAvgTransactionValue: progressiveAvgTransactionValue / 100000
       };
     });
   };
@@ -281,14 +289,15 @@ const Reports: React.FC = () => {
             { key: 'slNo', label: 'Sl. No.' },
             { key: 'amcName', label: 'AMC Name' },
             { key: 'amcCode', label: 'AMC Code' },
+            { key: 'commodity', label: 'Commodity' },
             { key: 'totalCurrentMonth', label: `Total MF ${selectedMonth} (Lakhs)` },
-            { key: 'prawnsCollection025', label: 'Prawns 0.25% (Lakhs)' },
-            { key: 'prawnsCollection050', label: 'Prawns 0.50% (Lakhs)' },
+            { key: 'receiptCount', label: 'Receipt Count' },
+            { key: 'avgTransactionValue', label: 'Avg Transaction Value (Lakhs)' },
             { key: 'totalProgressive', label: 'Total Progressive (Lakhs)' },
-            { key: 'progressivePrawns025', label: 'Progressive Prawns 0.25% (Lakhs)' },
-            { key: 'progressivePrawns050', label: 'Progressive Prawns 0.50% (Lakhs)' }
+            { key: 'progressiveReceiptCount', label: 'Progressive Receipt Count' },
+            { key: 'progressiveAvgTransactionValue', label: 'Progressive Avg Transaction (Lakhs)' }
           ],
-          title: `Commodity-wise Market Fee Report - ${selectedMonth} ${selectedYear}`
+          title: `${selectedCommodity} Market Fee Report - ${selectedMonth} ${selectedYear}`
         };
       default:
         return { data: [], columns: [], title: '' };
@@ -599,28 +608,27 @@ const Reports: React.FC = () => {
     
     const totals = commodityData.reduce((acc, item) => ({
       totalCurrentMonth: acc.totalCurrentMonth + item.totalCurrentMonth,
-      prawnsCollection025: acc.prawnsCollection025 + item.prawnsCollection025,
-      prawnsCollection050: acc.prawnsCollection050 + item.prawnsCollection050,
+      receiptCount: acc.receiptCount + item.receiptCount,
       totalProgressive: acc.totalProgressive + item.totalProgressive,
-      progressivePrawns025: acc.progressivePrawns025 + item.progressivePrawns025,
-      progressivePrawns050: acc.progressivePrawns050 + item.progressivePrawns050,
+      progressiveReceiptCount: acc.progressiveReceiptCount + item.progressiveReceiptCount,
     }), {
       totalCurrentMonth: 0,
-      prawnsCollection025: 0,
-      prawnsCollection050: 0,
+      receiptCount: 0,
       totalProgressive: 0,
-      progressivePrawns025: 0,
-      progressivePrawns050: 0,
+      progressiveReceiptCount: 0,
     });
+
+    const avgCurrentMonth = totals.receiptCount > 0 ? totals.totalCurrentMonth / totals.receiptCount : 0;
+    const avgProgressive = totals.progressiveReceiptCount > 0 ? totals.totalProgressive / totals.progressiveReceiptCount : 0;
 
     return (
       <>
         {/* Statement Header */}
-        <div className="bg-white rounded-lg shadow-lg p-6 mb-6 border-2 border-blue-600">
+        <div className="bg-white rounded-lg shadow-lg p-6 mb-6 border-2 border-purple-600">
           <div className="text-center">
-            <h1 className="text-xl font-bold mb-2 text-blue-800">Sample for Commodity Wise Data</h1>
+            <h1 className="text-xl font-bold mb-2 text-purple-800">COMMODITY-WISE MARKET FEE REPORT</h1>
             <h2 className="text-lg font-bold mb-4">
-              Market Fee collection on Prawns<br />
+              Market Fee collection for {selectedCommodity}<br />
               up to the month of {selectedMonth.toUpperCase()} {selectedYear.split('-')[1]}
             </h2>
           </div>
@@ -638,16 +646,17 @@ const Reports: React.FC = () => {
                 <tr>
                   <th rowSpan={2} className="border border-gray-800 px-2 py-3 text-xs font-bold text-center">SL<br />No.</th>
                   <th rowSpan={2} className="border border-gray-800 px-2 py-3 text-xs font-bold text-center">Name of the<br />AMC</th>
+                  <th rowSpan={2} className="border border-gray-800 px-2 py-3 text-xs font-bold text-center">Commodity</th>
                   <th colSpan={3} className="border border-gray-800 px-2 py-3 text-xs font-bold text-center">MF Collection during the month of {selectedMonth.toUpperCase()}</th>
                   <th colSpan={3} className="border border-gray-800 px-2 py-3 text-xs font-bold text-center">Progressive collection of MF up to the Month of<br />{selectedMonth.toUpperCase()}</th>
                 </tr>
                 <tr>
                   <th className="border border-gray-800 px-2 py-2 text-xs font-bold text-center">Total MF collection<br />for the month of<br />{selectedMonth.toUpperCase()}</th>
-                  <th className="border border-gray-800 px-2 py-2 text-xs font-bold text-center">MF<br />Collection<br />(0.25%)</th>
-                  <th className="border border-gray-800 px-2 py-2 text-xs font-bold text-center">MF<br />Collection<br />(0.50%)</th>
+                  <th className="border border-gray-800 px-2 py-2 text-xs font-bold text-center">Receipt<br />Count</th>
+                  <th className="border border-gray-800 px-2 py-2 text-xs font-bold text-center">Avg Transaction<br />Value</th>
                   <th className="border border-gray-800 px-2 py-2 text-xs font-bold text-center">Total MF<br />collection upto<br />the month of<br />{selectedMonth.toUpperCase()}</th>
-                  <th className="border border-gray-800 px-2 py-2 text-xs font-bold text-center">MF<br />Collection<br />(0.25%)</th>
-                  <th className="border border-gray-800 px-2 py-2 text-xs font-bold text-center">MF Collection<br />(0.50%)</th>
+                  <th className="border border-gray-800 px-2 py-2 text-xs font-bold text-center">Progressive<br />Receipt Count</th>
+                  <th className="border border-gray-800 px-2 py-2 text-xs font-bold text-center">Progressive Avg<br />Transaction Value</th>
                 </tr>
                 <tr className="bg-gray-50">
                   <th className="border border-gray-800 px-2 py-1 text-xs font-bold">1</th>
@@ -658,6 +667,7 @@ const Reports: React.FC = () => {
                   <th className="border border-gray-800 px-2 py-1 text-xs font-bold">6</th>
                   <th className="border border-gray-800 px-2 py-1 text-xs font-bold">7</th>
                   <th className="border border-gray-800 px-2 py-1 text-xs font-bold">8</th>
+                  <th className="border border-gray-800 px-2 py-1 text-xs font-bold">9</th>
                 </tr>
               </thead>
               <tbody>
@@ -665,23 +675,24 @@ const Reports: React.FC = () => {
                   <tr key={item.slNo} className="hover:bg-gray-50">
                     <td className="border border-gray-800 px-2 py-2 text-xs text-center">{item.slNo}</td>
                     <td className="border border-gray-800 px-2 py-2 text-xs text-left">{item.amcName}</td>
+                    <td className="border border-gray-800 px-2 py-2 text-xs text-center">{item.commodity}</td>
                     <td className="border border-gray-800 px-2 py-2 text-xs text-center">{item.totalCurrentMonth.toFixed(2)}</td>
-                    <td className="border border-gray-800 px-2 py-2 text-xs text-center">{item.prawnsCollection025.toFixed(2)}</td>
-                    <td className="border border-gray-800 px-2 py-2 text-xs text-center">{item.prawnsCollection050.toFixed(2)}</td>
+                    <td className="border border-gray-800 px-2 py-2 text-xs text-center">{item.receiptCount}</td>
+                    <td className="border border-gray-800 px-2 py-2 text-xs text-center">{item.avgTransactionValue.toFixed(2)}</td>
                     <td className="border border-gray-800 px-2 py-2 text-xs text-center">{item.totalProgressive.toFixed(2)}</td>
-                    <td className="border border-gray-800 px-2 py-2 text-xs text-center">{item.progressivePrawns025.toFixed(2)}</td>
-                    <td className="border border-gray-800 px-2 py-2 text-xs text-center">{item.progressivePrawns050.toFixed(2)}</td>
+                    <td className="border border-gray-800 px-2 py-2 text-xs text-center">{item.progressiveReceiptCount}</td>
+                    <td className="border border-gray-800 px-2 py-2 text-xs text-center">{item.progressiveAvgTransactionValue.toFixed(2)}</td>
                   </tr>
                 ))}
                 <tr className="bg-gray-100 font-bold">
                   <td className="border border-gray-800 px-2 py-2 text-xs text-center"></td>
-                  <td className="border border-gray-800 px-2 py-2 text-xs text-left">Total</td>
+                  <td className="border border-gray-800 px-2 py-2 text-xs text-left" colSpan={2}>Total</td>
                   <td className="border border-gray-800 px-2 py-2 text-xs text-center">{totals.totalCurrentMonth.toFixed(2)}</td>
-                  <td className="border border-gray-800 px-2 py-2 text-xs text-center">{totals.prawnsCollection025.toFixed(2)}</td>
-                  <td className="border border-gray-800 px-2 py-2 text-xs text-center">{totals.prawnsCollection050.toFixed(2)}</td>
+                  <td className="border border-gray-800 px-2 py-2 text-xs text-center">{totals.receiptCount}</td>
+                  <td className="border border-gray-800 px-2 py-2 text-xs text-center">{avgCurrentMonth.toFixed(2)}</td>
                   <td className="border border-gray-800 px-2 py-2 text-xs text-center">{totals.totalProgressive.toFixed(2)}</td>
-                  <td className="border border-gray-800 px-2 py-2 text-xs text-center">{totals.progressivePrawns025.toFixed(2)}</td>
-                  <td className="border border-gray-800 px-2 py-2 text-xs text-center">{totals.progressivePrawns050.toFixed(2)}</td>
+                  <td className="border border-gray-800 px-2 py-2 text-xs text-center">{totals.progressiveReceiptCount}</td>
+                  <td className="border border-gray-800 px-2 py-2 text-xs text-center">{avgProgressive.toFixed(2)}</td>
                 </tr>
               </tbody>
             </table>
@@ -817,6 +828,25 @@ const Reports: React.FC = () => {
                 ))}
               </select>
             </div>
+            {/* Commodity Dropdown - Only show for commodity report */}
+            {reportType === 'commodity' && (
+              <div className="min-w-0 flex-1 sm:flex-none sm:w-auto">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Commodity
+                </label>
+                <select
+                  value={selectedCommodity}
+                  onChange={(e) => setSelectedCommodity(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+                >
+                  {commodities.map((commodity) => (
+                    <option key={commodity} value={commodity}>
+                      {commodity}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
         </div>
       </div>
