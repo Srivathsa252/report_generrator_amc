@@ -2,10 +2,11 @@ import React, { useState } from 'react';
 import { Database, CheckCircle, AlertCircle, Loader } from 'lucide-react';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { seedData } from '../data/seedData';
+import { Receipt, Target } from '../types';
 
 const SeedDataButton: React.FC = () => {
-  const [receipts, setReceipts] = useLocalStorage('receipts', []);
-  const [targets, setTargets] = useLocalStorage('targets', []);
+  const [receipts, setReceipts] = useLocalStorage<Receipt[]>('receipts', []);
+  const [targets, setTargets] = useLocalStorage<Target[]>('targets', []);
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 

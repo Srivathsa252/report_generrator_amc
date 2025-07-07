@@ -22,7 +22,7 @@ const CustomBarChart: React.FC<BarChartProps> = ({
 }) => {
   // Support grouped/double bar chart if yKey is array
   const isGrouped = Array.isArray(yKey);
-  const colors = ['#EF4444', '#10B981', '#3B82F6', '#F59E0B']; // Add more if needed
+  const colors = ['#EF4444', '#10B981']; // Red for Achieved, Green for Target
 
   return (
     <div className="bg-white p-6 rounded-lg shadow-lg">

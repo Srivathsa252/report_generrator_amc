@@ -249,6 +249,28 @@ const Analytics: React.FC = () => {
     color: item.percentage >= 100 ? '#10B981' : item.percentage >= 75 ? '#F59E0B' : '#EF4444'
   })).sort((a, b) => b.achieved - a.achieved);
 
+  // Static demo data for Target vs Achieved (Lakhs)
+  const staticTargetVsAchieved = [
+    { name: 'KRP-AMC', Achieved: 420, Target: 700 },
+    { name: 'KKDR-AMC', Achieved: 900, Target: 1500 },
+    { name: 'PTM-AMC', Achieved: 1200, Target: 2000 },
+    { name: 'TUNI-AMC', Achieved: 1500, Target: 2500 },
+    { name: 'PTD-AMC', Achieved: 1800, Target: 3000 },
+    { name: 'JPT-AMC', Achieved: 2100, Target: 3500 },
+    { name: 'PDM-AMC', Achieved: 2400, Target: 4000 },
+    { name: 'SMLK-AMC', Achieved: 2700, Target: 4500 },
+    { name: 'KKD-AMC', Achieved: 3000, Target: 5000 },
+  ];
+
+  // Static demo data for Top Commodities by Collection
+  const staticCommodities = [
+    { commodity: 'Rice', totalCollection: 1200000 },
+    { commodity: 'Wheat', totalCollection: 900000 },
+    { commodity: 'Paddy', totalCollection: 700000 },
+    { commodity: 'Maize', totalCollection: 500000 },
+    { commodity: 'Sugarcane', totalCollection: 300000 },
+  ];
+
   return (
     <div className="max-w-full mx-auto p-4 lg:p-6 space-y-6">
       {/* Header */}
@@ -361,7 +383,7 @@ const Analytics: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Target vs Achieved Double Bar Chart */}
         <CustomBarChart
-          data={analytics.map(item => ({
+          data={(receipts.length === 0 || targets.length === 0) ? staticTargetVsAchieved : analytics.map(item => ({
             name: item.committee.code,
             Achieved: item.achieved / 100000,
             Target: item.yearlyTarget / 100000
@@ -389,7 +411,7 @@ const Analytics: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Commodity Distribution Pie Chart */}
         <CustomPieChart
-          data={commodityAnalytics.slice(0, 8)}
+          data={(commodityAnalytics.length === 0 ? staticCommodities : commodityAnalytics.slice(0, 5))}
           dataKey="totalCollection"
           nameKey="commodity"
           title="Top Commodities by Collection"
@@ -397,10 +419,15 @@ const Analytics: React.FC = () => {
         />
 
         {/* Committee Progress */}
-        <ProgressChart
-          data={progressData.slice(0, 8)}
-          title="Top Committee Progress"
-        />
+        <div className="bg-white p-6 rounded-lg shadow-lg flex flex-col justify-between h-full" style={{ minHeight: 340 }}>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Committee Progress</h3>
+          <div style={{ flex: 1, overflowY: 'auto', margin: 0, padding: 0 }}>
+            <ProgressChart
+              data={progressData.slice(0, 4)}
+              title=""
+            />
+          </div>
+        </div>
       </div>
 
       {/* Top Checkpost Performance (Lakhs) - full width */}
@@ -515,7 +542,7 @@ const Analytics: React.FC = () => {
                 <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
                   <div
                     className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full"
-                    style={{ width: \`${Math.min(item.percentage, 100)}%` }}
+                    style={{ width: `${Math.min(item.percentage, 100)}%` }}
                   ></div>
                 </div>
               </div>
