@@ -14,9 +14,9 @@ interface ProgressChartProps {
 
 const ProgressChart: React.FC<ProgressChartProps> = ({ data, title }) => {
   return (
-    <div className="bg-white p-6 rounded-lg shadow-lg">
-      <h3 className="text-lg font-semibold text-gray-900 mb-6">{title}</h3>
-      <div className="space-y-4">
+    <div className="h-full">
+      {title && <h3 className="text-lg font-semibold text-gray-900 mb-6">{title}</h3>}
+      <div className="space-y-3 h-full overflow-y-auto">
         {data.map((item, index) => {
           const percentage = item.target > 0 ? (item.achieved / item.target) * 100 : 0;
           const isOverAchieved = percentage > 100;
@@ -32,7 +32,7 @@ const ProgressChart: React.FC<ProgressChartProps> = ({ data, title }) => {
                     {percentage.toFixed(1)}%
                   </span>
                   <div className="text-xs text-gray-500">
-                    ₹{item.achieved.toLocaleString()} / ₹{item.target.toLocaleString()}
+                    ₹{(item.achieved / 100000).toFixed(1)}L / ₹{(item.target / 100000).toFixed(1)}L
                   </div>
                 </div>
               </div>

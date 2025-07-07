@@ -410,20 +410,22 @@ const Analytics: React.FC = () => {
       {/* Only 2 Tiles: Top Commodities and Top Committee Progress */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Commodity Distribution Pie Chart */}
-        <CustomPieChart
-          data={(commodityAnalytics.length === 0 ? staticCommodities : commodityAnalytics.slice(0, 5))}
-          dataKey="totalCollection"
-          nameKey="commodity"
-          title="Top Commodities by Collection"
-          height={300}
-        />
+        <div style={{ minHeight: '400px' }}>
+          <CustomPieChart
+            data={(commodityAnalytics.length === 0 ? staticCommodities : commodityAnalytics.slice(0, 5))}
+            dataKey="totalCollection"
+            nameKey="commodity"
+            title="Top Commodities by Collection"
+            height={400}
+          />
+        </div>
 
         {/* Committee Progress */}
-        <div className="bg-white p-6 rounded-lg shadow-lg flex flex-col justify-between h-full" style={{ minHeight: 340 }}>
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Committee Progress</h3>
-          <div style={{ flex: 1, overflowY: 'auto', margin: 0, padding: 0 }}>
+        <div className="bg-white p-6 rounded-lg shadow-lg" style={{ minHeight: '400px' }}>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">Committee Progress</h3>
+          <div className="h-full">
             <ProgressChart
-              data={progressData.slice(0, 4)}
+              data={progressData}
               title=""
             />
           </div>
@@ -438,7 +440,7 @@ const Analytics: React.FC = () => {
           yKey="totalCollection"
           title="Top Checkpost Performance (Lakhs)"
           color="#E63946"
-          height={300}
+          height={400}
         />
       </div>
 
