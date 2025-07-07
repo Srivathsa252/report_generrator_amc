@@ -185,19 +185,24 @@ const Analytics: React.FC = () => {
   const calculateHeatmapData = () => {
     const heatmapData: any[] = [];
     
+    committees.forEach(committee => {
       const committeeReceipts = marketFeeReceipts.filter(r => 
         r.committeeId === committee.id && r.financialYear === selectedYear
       );
+      
       months.forEach(month => {
-        const monthReceipts = marketFeeReceipts.filter(r => {
+        const monthReceipts = committeeReceipts.filter(r => {
           const receiptDate = new Date(r.date);
           const receiptMonth = receiptDate.toLocaleString('default', { month: 'long' });
-          return r.committeeId === committee.id && receiptMonth === month;
-        });
-          if (r.committeeId !== committee.id || r.financialYear !== selectedYear) return false;
-
-        const collected = monthReceipts.reduce((sum, r) => sum + r.marketFee, 0);
           return receiptMonth === month;
+        });
+        
+        const collected = monthReceipts.reduce((sum, r) => sum + r.marketFee, 0);
+        const target = targets.find(t => 
+          t.committeeId === committee.id && 
+          t.financialYear === selectedYear
+        )?.monthlyTargets[month] || 0;
+        
         const percentage = target > 0 ? (collected / target) * 100 : 0;
 
         heatmapData.push({
@@ -216,11 +221,7 @@ const Analytics: React.FC = () => {
   const commodityAnalytics = calculateCommodityAnalytics();
   const monthlyTrends = calculateMonthlyTrends();
   const checkpostPerformance = calculateCheckpostPerformance();
-    const committeesToAnalyze = selectedCommittee === 'all' 
-      ? committees 
-      : committees.filter(c => c.id === selectedCommittee);
-    
-    committeesToAnalyze.forEach(committee => {
+  const heatmapData = calculateHeatmapData();
 
   // Summary calculations
   const totalCollected = analytics.reduce((sum, a) => sum + a.achieved, 0);
