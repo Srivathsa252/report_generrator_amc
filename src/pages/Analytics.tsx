@@ -3,6 +3,7 @@ import { BarChart3, TrendingUp, Target, DollarSign, Calendar, Filter, Users, Pac
 import { Receipt, Target as TargetType } from '../types';
 import { committees, months, commodities } from '../data/committees';
 import { useLocalStorage } from '../hooks/useLocalStorage';
+import SeedDataButton from '../components/SeedDataButton';
 
 // Chart Components
 import CustomBarChart from '../components/charts/BarChart';
@@ -235,6 +236,9 @@ const Analytics: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Seed Data Button - Show if no data */}
+      {(receipts.length === 0 || targets.length === 0) && <SeedDataButton />}
 
       {/* Filters */}
       <div className="bg-white rounded-lg shadow-lg p-6">
