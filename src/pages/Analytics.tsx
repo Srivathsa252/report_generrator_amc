@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BarChart3, TrendingUp, Target, DollarSign, Calendar, Filter, Users, Package, MapPin, PieChart, Activity } from 'lucide-react';
+import { BarChart3, TrendingUp, Target, DollarSign, Calendar, Filter, Users, Package, MapPin, PieChart, Activity, FileText } from 'lucide-react';
 import { Receipt, Target as TargetType } from '../types';
 import { committees, months, commodities } from '../data/committees';
 import { useLocalStorage } from '../hooks/useLocalStorage';
@@ -326,51 +326,52 @@ const Analytics: React.FC = () => {
       {/* Key Metrics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <MetricCard
-          title="Total Collection"
+          title="Total Market Fees Collected"
           value={`₹${(totalCollected / 100000).toFixed(2)}L`}
           change={growthRate}
           changeType={growthRate > 0 ? 'increase' : growthRate < 0 ? 'decrease' : 'neutral'}
           icon={<DollarSign className="w-6 h-6" />}
-          color="#10B981"
+          color="#1E40AF"
           subtitle={`Target: ₹${(totalTarget / 100000).toFixed(2)}L`}
         />
         <MetricCard
           title="Achievement Rate"
           value={`${totalTarget > 0 ? ((totalCollected / totalTarget) * 100).toFixed(1) : 0}%`}
           icon={<Target className="w-6 h-6" />}
-          color="#3B82F6"
+          color="#059669"
           subtitle="Against yearly target"
         />
         <MetricCard
           title="Total Receipts"
           value={totalReceipts}
           icon={<Activity className="w-6 h-6" />}
-          color="#8B5CF6"
+          color="#7C3AED"
           subtitle="Market fee receipts"
         />
         <MetricCard
-          title="Avg Transaction"
-          value={`₹${(avgTransactionValue / 1000).toFixed(1)}K`}
+          title="Active Committees"
+          value={analytics.filter(item => item.achieved > 0).length}
           icon={<TrendingUp className="w-6 h-6" />}
-          color="#F59E0B"
-          subtitle="Per receipt"
+          color="#DC2626"
+          subtitle="With collections"
         />
       </div>
 
       {/* Charts Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Committee Performance Bar Chart */}
+        {/* Target vs Achievement Comparison */}
         <CustomBarChart
           data={analytics.map(item => ({
             name: item.committee.code,
-            achieved: item.achieved / 100000,
-            target: item.yearlyTarget / 100000
+            Target: item.yearlyTarget / 100000,
+            Achieved: item.achieved / 100000
           }))}
           xKey="name"
-          yKey="achieved"
-          title="Committee-wise Achievement (Lakhs)"
-          color="#3B82F6"
+          yKey="Target"
+          title="Target vs Achievement Comparison (Lakhs)"
+          color="#1E40AF"
           height={350}
+          showComparison={true}
         />
 
         {/* Monthly Trends Line Chart */}
@@ -378,8 +379,8 @@ const Analytics: React.FC = () => {
           data={monthlyTrends}
           xKey="month"
           lines={[
-            { key: '2024-25', color: '#EF4444', name: '2024-25' },
-            { key: '2025-26', color: '#10B981', name: '2025-26' }
+            { key: '2024-25', color: '#DC2626', name: '2024-25' },
+            { key: '2025-26', color: '#059669', name: '2025-26' }
           ]}
           title="Monthly Collection Trends (Lakhs)"
           height={350}
@@ -387,7 +388,7 @@ const Analytics: React.FC = () => {
       </div>
 
       {/* More Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Commodity Distribution Pie Chart */}
         <CustomPieChart
           data={commodityAnalytics.slice(0, 8)}
@@ -397,22 +398,9 @@ const Analytics: React.FC = () => {
           height={300}
         />
 
-        {/* Collection vs Target Donut */}
-        <DonutChart
-          data={[
-            { name: 'Achieved', value: totalCollected / 100000 },
-            { name: 'Remaining', value: Math.max(0, (totalTarget - totalCollected) / 100000) }
-          ]}
-          dataKey="value"
-          nameKey="name"
-          title="Target Achievement"
-          centerText="Total Target"
-          height={300}
-        />
-
         {/* Committee Progress */}
         <ProgressChart
-          data={progressData.slice(0, 6)}
+          data={progressData.slice(0, 8)}
           title="Top Committee Progress"
         />
       </div>
@@ -427,7 +415,7 @@ const Analytics: React.FC = () => {
           xKey="month"
           yKey="growth"
           title="Month-over-Month Growth Rate (%)"
-          color="#8B5CF6"
+          color="#7C3AED"
           height={300}
         />
 
@@ -437,7 +425,7 @@ const Analytics: React.FC = () => {
           xKey="name"
           yKey="totalCollection"
           title="Top Checkpost Performance (Lakhs)"
-          color="#F59E0B"
+          color="#D97706"
           height={300}
         />
       </div>
@@ -462,7 +450,6 @@ const Analytics: React.FC = () => {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Achieved (L)</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Achievement %</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Receipts</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Avg Transaction</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
               </tr>
             </thead>
@@ -499,12 +486,6 @@ const Analytics: React.FC = () => {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {item.receiptCount}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    ₹{(item.avgTransactionValue / 1000).toFixed(1)}K
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                      item.percentage >= 100 
                         ? 'bg-green-100 text-green-800'
                         : item.percentage >= 75
                           ? 'bg-yellow-100 text-yellow-800'
