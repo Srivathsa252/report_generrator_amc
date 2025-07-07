@@ -10,7 +10,7 @@ interface PieChartProps {
   height?: number;
 }
 
-const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4', '#84CC16', '#F97316'];
+const COLORS = ['#1E40AF', '#059669', '#D97706', '#DC2626', '#7C3AED', '#0891B2', '#65A30D', '#EA580C'];
 
 const CustomPieChart: React.FC<PieChartProps> = ({
   data,

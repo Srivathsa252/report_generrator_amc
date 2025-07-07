@@ -34,7 +34,7 @@ const MetricCard: React.FC<MetricCardProps> = ({
   const getTrendColor = () => {
     switch (changeType) {
       case 'increase':
-        return 'text-green-600';
+        return 'text-emerald-600';
       case 'decrease':
         return 'text-red-600';
       default:

@@ -1,5 +1,5 @@
 import React from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
 
 interface BarChartProps {
   data: any[];
@@ -8,6 +8,7 @@ interface BarChartProps {
   title: string;
   color?: string;
   height?: number;
+  showComparison?: boolean;
 }
 
 const CustomBarChart: React.FC<BarChartProps> = ({
@@ -16,7 +17,8 @@ const CustomBarChart: React.FC<BarChartProps> = ({
   yKey,
   title,
   color = '#3B82F6',
-  height = 300
+  height = 300,
+  showComparison = false
 }) => {
   // Support grouped/double bar chart if yKey is array
   const isGrouped = Array.isArray(yKey);

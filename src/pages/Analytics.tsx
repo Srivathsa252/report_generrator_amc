@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BarChart3, TrendingUp, Target, DollarSign, Calendar, Filter, Users, Package, MapPin, PieChart, Activity } from 'lucide-react';
+import { BarChart3, TrendingUp, Target, DollarSign, Calendar, Filter, Users, Package, MapPin, PieChart, Activity, FileText } from 'lucide-react';
 import { Receipt, Target as TargetType } from '../types';
 import { committees, months, commodities } from '../data/committees';
 import { useLocalStorage } from '../hooks/useLocalStorage';
@@ -371,6 +371,7 @@ const Analytics: React.FC = () => {
           title="Target vs Achieved (Lakhs)"
           color="#1D3557"
           height={350}
+          showComparison={true}
         />
 
         {/* Monthly Trends Double Bar Chart */}
@@ -397,7 +398,7 @@ const Analytics: React.FC = () => {
 
         {/* Committee Progress */}
         <ProgressChart
-          data={progressData.slice(0, 6)}
+          data={progressData.slice(0, 8)}
           title="Top Committee Progress"
         />
       </div>
@@ -514,7 +515,7 @@ const Analytics: React.FC = () => {
                 <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
                   <div
                     className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full"
-                    style={{ width: `${Math.min(item.percentage, 100)}%` }}
+                    style={{ width: \`${Math.min(item.percentage, 100)}%` }}
                   ></div>
                 </div>
               </div>

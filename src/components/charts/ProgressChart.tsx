@@ -40,17 +40,17 @@ const ProgressChart: React.FC<ProgressChartProps> = ({ data, title }) => {
                 <div
                   className={`h-3 rounded-full transition-all duration-500 ${
                     isOverAchieved 
-                      ? 'bg-gradient-to-r from-green-500 to-emerald-600' 
+                      ? 'bg-gradient-to-r from-emerald-600 to-emerald-700' 
                       : percentage >= 75 
-                        ? 'bg-gradient-to-r from-green-400 to-green-500'
+                        ? 'bg-gradient-to-r from-blue-500 to-blue-600'
                         : percentage >= 50
-                          ? 'bg-gradient-to-r from-yellow-400 to-yellow-500'
-                          : 'bg-gradient-to-r from-red-400 to-red-500'
+                          ? 'bg-gradient-to-r from-amber-500 to-amber-600'
+                          : 'bg-gradient-to-r from-red-500 to-red-600'
                   }`}
                   style={{ width: `${Math.min(percentage, 100)}%` }}
                 />
                 {isOverAchieved && (
-                  <div className="absolute top-0 right-0 h-3 w-2 bg-gradient-to-l from-emerald-700 to-emerald-600 animate-pulse" />
+                  <div className="absolute top-0 right-0 h-3 w-2 bg-gradient-to-l from-emerald-800 to-emerald-700 animate-pulse" />
                 )}
               </div>
             </div>
