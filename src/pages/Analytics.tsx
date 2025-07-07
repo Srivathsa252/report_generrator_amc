@@ -1,162 +1,454 @@
-import React from 'react';
-import { BarChart3, TrendingUp, Target, DollarSign } from 'lucide-react';
+import React, { useState } from 'react';
+import { BarChart3, TrendingUp, Target, DollarSign, Calendar, Filter, Users, Package, MapPin, PieChart, Activity } from 'lucide-react';
 import { Receipt, Target as TargetType } from '../types';
-import { committees, months } from '../data/committees';
+import { committees, months, commodities } from '../data/committees';
 import { useLocalStorage } from '../hooks/useLocalStorage';
+
+// Chart Components
+import CustomBarChart from '../components/charts/BarChart';
+import CustomLineChart from '../components/charts/LineChart';
+import CustomPieChart from '../components/charts/PieChart';
+import CustomAreaChart from '../components/charts/AreaChart';
+import DonutChart from '../components/charts/DonutChart';
+import ProgressChart from '../components/charts/ProgressChart';
+import MetricCard from '../components/charts/MetricCard';
+import HeatmapChart from '../components/charts/HeatmapChart';
 
 const Analytics: React.FC = () => {
   const [receipts] = useLocalStorage<Receipt[]>('receipts', []);
   const [targets] = useLocalStorage<TargetType[]>('targets', []);
-  const [selectedMonth, setSelectedMonth] = React.useState<string>('May');
+  const [selectedYear, setSelectedYear] = useState<'2024-25' | '2025-26'>('2025-26');
+  const [selectedMonth, setSelectedMonth] = useState<string>('May');
+  const [selectedCommittee, setSelectedCommittee] = useState<string>('all');
+  const [timeRange, setTimeRange] = useState<'month' | 'quarter' | 'year'>('month');
 
-  // Calculate market fee analytics with filters
-  const marketFeeReceipts = receipts.filter(r => r.natureOfReceipt === 'mf');
-
-  // Filtered by month and year for achieved calculation
-  const analytics = committees.map(committee => {
-    const committeeReceipts = marketFeeReceipts.filter(r => r.committeeId === committee.id);
-    const monthIndex = months.indexOf(selectedMonth);
-    const cumulativeMonths = monthIndex >= 0 ? months.slice(0, monthIndex + 1) : [selectedMonth];
-    const achieved = committeeReceipts.filter(r => r.financialYear === '2024-25' && cumulativeMonths.includes(new Date(r.date).toLocaleString('default', { month: 'long' })))
-      .reduce((sum, r) => sum + r.marketFee, 0);
-    const target = targets.find(t => t.committeeId === committee.id && t.financialYear === '2024-25')?.monthlyTargets
-      ? cumulativeMonths.reduce((sum, month) => {
-          const t = targets.find(t => t.committeeId === committee.id && t.financialYear === '2024-25');
-          return sum + (t?.monthlyTargets[month] || 0);
-        }, 0)
-      : 0;
-    const percentage = target > 0 ? (achieved / target) * 100 : 0;
-    return {
-      committee,
-      target,
-      achieved,
-      percentage,
-      receiptCount: committeeReceipts.filter(r => r.financialYear === '2024-25' && cumulativeMonths.includes(new Date(r.date).toLocaleString('default', { month: 'long' }))).length,
-    };
+  // Filter receipts based on selections
+  const filteredReceipts = receipts.filter(r => {
+    const matchesYear = r.financialYear === selectedYear;
+    const matchesCommittee = selectedCommittee === 'all' || r.committeeId === selectedCommittee;
+    return matchesYear && matchesCommittee;
   });
 
-  const totalCollected2024 = analytics.reduce((sum, a) => sum + a.target, 0);
-  const totalCollected2025 = analytics.reduce((sum, a) => sum + a.target, 0);
+  const marketFeeReceipts = filteredReceipts.filter(r => r.natureOfReceipt === 'mf');
+
+  // Calculate comprehensive analytics
+  const calculateAnalytics = () => {
+    const analytics = committees.map(committee => {
+      const committeeReceipts = marketFeeReceipts.filter(r => r.committeeId === committee.id);
+      
+      // Monthly data
+      const monthlyData = months.map(month => {
+        const monthReceipts = committeeReceipts.filter(r => {
+          const receiptDate = new Date(r.date);
+          const receiptMonth = receiptDate.toLocaleString('default', { month: 'long' });
+          return receiptMonth === month;
+        });
+        
+        const collected = monthReceipts.reduce((sum, r) => sum + r.marketFee, 0);
+        const target = targets.find(t => t.committeeId === committee.id && t.financialYear === selectedYear)?.monthlyTargets[month] || 0;
+        
+        return {
+          month,
+          collected,
+          target,
+          percentage: target > 0 ? (collected / target) * 100 : 0,
+          receiptCount: monthReceipts.length
+        };
+      });
+
+      // Cumulative calculations
+      const monthIndex = months.indexOf(selectedMonth);
+      const cumulativeMonths = monthIndex >= 0 ? months.slice(0, monthIndex + 1) : [selectedMonth];
+      
+      const cumulativeReceipts = committeeReceipts.filter(r => {
+        const receiptDate = new Date(r.date);
+        const receiptMonth = receiptDate.toLocaleString('default', { month: 'long' });
+        return cumulativeMonths.includes(receiptMonth);
+      });
+
+      const achieved = cumulativeReceipts.reduce((sum, r) => sum + r.marketFee, 0);
+      const yearlyTarget = targets.find(t => t.committeeId === committee.id && t.financialYear === selectedYear)?.yearlyTarget || 0;
+      const cumulativeTarget = cumulativeMonths.reduce((sum, month) => {
+        const t = targets.find(t => t.committeeId === committee.id && t.financialYear === selectedYear);
+        return sum + (t?.monthlyTargets[month] || 0);
+      }, 0);
+
+      return {
+        committee,
+        achieved,
+        yearlyTarget,
+        cumulativeTarget,
+        percentage: yearlyTarget > 0 ? (achieved / yearlyTarget) * 100 : 0,
+        receiptCount: cumulativeReceipts.length,
+        monthlyData,
+        avgTransactionValue: cumulativeReceipts.length > 0 
+          ? cumulativeReceipts.reduce((sum, r) => sum + r.transactionValue, 0) / cumulativeReceipts.length 
+          : 0
+      };
+    });
+
+    return analytics;
+  };
+
+  // Commodity-wise analytics
+  const calculateCommodityAnalytics = () => {
+    return commodities.map(commodity => {
+      const commodityReceipts = marketFeeReceipts.filter(r => r.commodity === commodity);
+      const totalCollection = commodityReceipts.reduce((sum, r) => sum + r.marketFee, 0);
+      const receiptCount = commodityReceipts.length;
+      const avgTransactionValue = receiptCount > 0 
+        ? commodityReceipts.reduce((sum, r) => sum + r.transactionValue, 0) / receiptCount 
+        : 0;
+
+      return {
+        commodity,
+        totalCollection,
+        receiptCount,
+        avgTransactionValue,
+        percentage: totalCollection > 0 ? (totalCollection / marketFeeReceipts.reduce((sum, r) => sum + r.marketFee, 0)) * 100 : 0
+      };
+    }).filter(item => item.totalCollection > 0).sort((a, b) => b.totalCollection - a.totalCollection);
+  };
+
+  // Monthly trend analysis
+  const calculateMonthlyTrends = () => {
+    return months.map(month => {
+      const monthReceipts2024 = receipts.filter(r => {
+        const receiptDate = new Date(r.date);
+        const receiptMonth = receiptDate.toLocaleString('default', { month: 'long' });
+        return r.financialYear === '2024-25' && receiptMonth === month && r.natureOfReceipt === 'mf';
+      });
+
+      const monthReceipts2025 = receipts.filter(r => {
+        const receiptDate = new Date(r.date);
+        const receiptMonth = receiptDate.toLocaleString('default', { month: 'long' });
+        return r.financialYear === '2025-26' && receiptMonth === month && r.natureOfReceipt === 'mf';
+      });
+
+      const collection2024 = monthReceipts2024.reduce((sum, r) => sum + r.marketFee, 0);
+      const collection2025 = monthReceipts2025.reduce((sum, r) => sum + r.marketFee, 0);
+
+      return {
+        month,
+        '2024-25': collection2024 / 100000, // Convert to lakhs
+        '2025-26': collection2025 / 100000,
+        growth: collection2024 > 0 ? ((collection2025 - collection2024) / collection2024) * 100 : 0
+      };
+    });
+  };
+
+  // Checkpost performance
+  const calculateCheckpostPerformance = () => {
+    const checkpostData: any[] = [];
+    
+    committees.forEach(committee => {
+      if (committee.hasCheckposts) {
+        committee.checkposts.forEach(checkpost => {
+          const checkpostReceipts = marketFeeReceipts.filter(r => 
+            r.committeeId === committee.id && r.checkpostName === checkpost
+          );
+          
+          const totalCollection = checkpostReceipts.reduce((sum, r) => sum + r.marketFee, 0);
+          const receiptCount = checkpostReceipts.length;
+          
+          if (totalCollection > 0) {
+            checkpostData.push({
+              name: `${committee.code} - ${checkpost}`,
+              committee: committee.name,
+              checkpost,
+              totalCollection: totalCollection / 100000,
+              receiptCount,
+              avgCollection: receiptCount > 0 ? totalCollection / receiptCount : 0
+            });
+          }
+        });
+      }
+    });
+
+    return checkpostData.sort((a, b) => b.totalCollection - a.totalCollection);
+  };
+
+  // Heatmap data for committee-month performance
+  const calculateHeatmapData = () => {
+    const heatmapData: any[] = [];
+    
+    committees.forEach(committee => {
+      months.forEach(month => {
+        const monthReceipts = marketFeeReceipts.filter(r => {
+          const receiptDate = new Date(r.date);
+          const receiptMonth = receiptDate.toLocaleString('default', { month: 'long' });
+          return r.committeeId === committee.id && receiptMonth === month;
+        });
+
+        const collected = monthReceipts.reduce((sum, r) => sum + r.marketFee, 0);
+        const target = targets.find(t => t.committeeId === committee.id && t.financialYear === selectedYear)?.monthlyTargets[month] || 0;
+        const percentage = target > 0 ? (collected / target) * 100 : 0;
+
+        heatmapData.push({
+          month,
+          committee: committee.name,
+          value: collected / 100000,
+          percentage
+        });
+      });
+    });
+
+    return heatmapData;
+  };
+
+  const analytics = calculateAnalytics();
+  const commodityAnalytics = calculateCommodityAnalytics();
+  const monthlyTrends = calculateMonthlyTrends();
+  const checkpostPerformance = calculateCheckpostPerformance();
+  const heatmapData = calculateHeatmapData();
+
+  // Summary calculations
+  const totalCollected = analytics.reduce((sum, a) => sum + a.achieved, 0);
+  const totalTarget = analytics.reduce((sum, a) => sum + a.yearlyTarget, 0);
   const totalReceipts = marketFeeReceipts.length;
+  const avgTransactionValue = totalReceipts > 0 
+    ? marketFeeReceipts.reduce((sum, r) => sum + r.transactionValue, 0) / totalReceipts 
+    : 0;
+
+  // Growth calculations
+  const prevYearReceipts = receipts.filter(r => r.financialYear === '2024-25' && r.natureOfReceipt === 'mf');
+  const prevYearTotal = prevYearReceipts.reduce((sum, r) => sum + r.marketFee, 0);
+  const growthRate = prevYearTotal > 0 ? ((totalCollected - prevYearTotal) / prevYearTotal) * 100 : 0;
+
+  // Progress data for committees
+  const progressData = analytics.map(item => ({
+    name: item.committee.code,
+    achieved: item.achieved,
+    target: item.yearlyTarget,
+    color: item.percentage >= 100 ? '#10B981' : item.percentage >= 75 ? '#F59E0B' : '#EF4444'
+  }));
 
   return (
-    <div className="max-w-7xl mx-auto p-6">
-      <div className="flex items-center mb-6">
-        <BarChart3 className="w-6 h-6 text-purple-600 mr-2" />
-        <h2 className="text-2xl font-bold text-gray-900">Market Fee Analytics</h2>
+    <div className="max-w-full mx-auto p-4 lg:p-6 space-y-6">
+      {/* Header */}
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-6">
+        <div className="flex items-center mb-4 lg:mb-0">
+          <BarChart3 className="w-8 h-8 text-purple-600 mr-3" />
+          <div>
+            <h2 className="text-3xl font-bold text-gray-900">Advanced Analytics Dashboard</h2>
+            <p className="text-gray-600">Comprehensive insights into AMC market fee performance</p>
+          </div>
+        </div>
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-4 mb-6">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Month</label>
-          <select
-            value={selectedMonth}
-            onChange={e => setSelectedMonth(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          >
-            {months.map(month => (
-              <option key={month} value={month}>{month}</option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white rounded-lg shadow-lg p-6">
-          <div className="flex items-center">
-            <DollarSign className="w-8 h-8 text-green-600" />
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Total Collected (2025-26)</p>
-              <p className="text-2xl font-bold text-gray-900">₹{totalCollected2025.toLocaleString()}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow-lg p-6">
-          <div className="flex items-center">
-            <Target className="w-8 h-8 text-blue-600" />
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Total Target (2025-26)</p>
-              <p className="text-2xl font-bold text-gray-900">₹{totalCollected2025.toLocaleString()}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow-lg p-6">
-          <div className="flex items-center">
-            <TrendingUp className="w-8 h-8 text-purple-600" />
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Growth from 2024-25</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {totalCollected2024 > 0 ? 
-                  `${(((totalCollected2025 - totalCollected2024) / totalCollected2024) * 100).toFixed(1)}%` : 
-                  'N/A'
-                }
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow-lg p-6">
-          <div className="flex items-center">
-            <BarChart3 className="w-8 h-8 text-orange-600" />
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Total Receipts</p>
-              <p className="text-2xl font-bold text-gray-900">{totalReceipts}</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Committee-wise Analytics */}
       <div className="bg-white rounded-lg shadow-lg p-6">
-        <div className="flex items-center mb-6 justify-between">
-          <h3 className="text-lg font-semibold text-gray-900">Committee-wise Performance</h3>
+        <div className="flex items-center space-x-4 mb-4">
+          <Filter className="w-5 h-5 text-gray-500" />
+          <h3 className="text-lg font-semibold text-gray-900">Filters & Controls</h3>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Financial Year</label>
+            <select
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(e.target.value as '2024-25' | '2025-26')}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+            >
+              <option value="2024-25">2024-25</option>
+              <option value="2025-26">2025-26</option>
+            </select>
+          </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Month</label>
             <select
               value={selectedMonth}
-              onChange={e => setSelectedMonth(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
             >
               {months.map(month => (
                 <option key={month} value={month}>{month}</option>
               ))}
             </select>
           </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Committee</label>
+            <select
+              value={selectedCommittee}
+              onChange={(e) => setSelectedCommittee(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+            >
+              <option value="all">All Committees</option>
+              {committees.map(committee => (
+                <option key={committee.id} value={committee.id}>{committee.code}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Time Range</label>
+            <select
+              value={timeRange}
+              onChange={(e) => setTimeRange(e.target.value as 'month' | 'quarter' | 'year')}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+            >
+              <option value="month">Monthly</option>
+              <option value="quarter">Quarterly</option>
+              <option value="year">Yearly</option>
+            </select>
+          </div>
         </div>
+      </div>
+
+      {/* Key Metrics Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <MetricCard
+          title="Total Collection"
+          value={`₹${(totalCollected / 100000).toFixed(2)}L`}
+          change={growthRate}
+          changeType={growthRate > 0 ? 'increase' : growthRate < 0 ? 'decrease' : 'neutral'}
+          icon={<DollarSign className="w-6 h-6" />}
+          color="#10B981"
+          subtitle={`Target: ₹${(totalTarget / 100000).toFixed(2)}L`}
+        />
+        <MetricCard
+          title="Achievement Rate"
+          value={`${totalTarget > 0 ? ((totalCollected / totalTarget) * 100).toFixed(1) : 0}%`}
+          icon={<Target className="w-6 h-6" />}
+          color="#3B82F6"
+          subtitle="Against yearly target"
+        />
+        <MetricCard
+          title="Total Receipts"
+          value={totalReceipts}
+          icon={<Activity className="w-6 h-6" />}
+          color="#8B5CF6"
+          subtitle="Market fee receipts"
+        />
+        <MetricCard
+          title="Avg Transaction"
+          value={`₹${(avgTransactionValue / 1000).toFixed(1)}K`}
+          icon={<TrendingUp className="w-6 h-6" />}
+          color="#F59E0B"
+          subtitle="Per receipt"
+        />
+      </div>
+
+      {/* Charts Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Committee Performance Bar Chart */}
+        <CustomBarChart
+          data={analytics.map(item => ({
+            name: item.committee.code,
+            achieved: item.achieved / 100000,
+            target: item.yearlyTarget / 100000
+          }))}
+          xKey="name"
+          yKey="achieved"
+          title="Committee-wise Achievement (Lakhs)"
+          color="#3B82F6"
+          height={350}
+        />
+
+        {/* Monthly Trends Line Chart */}
+        <CustomLineChart
+          data={monthlyTrends}
+          xKey="month"
+          lines={[
+            { key: '2024-25', color: '#EF4444', name: '2024-25' },
+            { key: '2025-26', color: '#10B981', name: '2025-26' }
+          ]}
+          title="Monthly Collection Trends (Lakhs)"
+          height={350}
+        />
+      </div>
+
+      {/* More Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Commodity Distribution Pie Chart */}
+        <CustomPieChart
+          data={commodityAnalytics.slice(0, 8)}
+          dataKey="totalCollection"
+          nameKey="commodity"
+          title="Top Commodities by Collection"
+          height={300}
+        />
+
+        {/* Collection vs Target Donut */}
+        <DonutChart
+          data={[
+            { name: 'Achieved', value: totalCollected / 100000 },
+            { name: 'Remaining', value: Math.max(0, (totalTarget - totalCollected) / 100000) }
+          ]}
+          dataKey="value"
+          nameKey="name"
+          title="Target Achievement"
+          centerText="Total Target"
+          height={300}
+        />
+
+        {/* Committee Progress */}
+        <ProgressChart
+          data={progressData.slice(0, 6)}
+          title="Top Committee Progress"
+        />
+      </div>
+
+      {/* Area Chart for Cumulative Growth */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <CustomAreaChart
+          data={monthlyTrends.map(item => ({
+            month: item.month,
+            growth: item.growth
+          }))}
+          xKey="month"
+          yKey="growth"
+          title="Month-over-Month Growth Rate (%)"
+          color="#8B5CF6"
+          height={300}
+        />
+
+        {/* Checkpost Performance */}
+        <CustomBarChart
+          data={checkpostPerformance.slice(0, 10)}
+          xKey="name"
+          yKey="totalCollection"
+          title="Top Checkpost Performance (Lakhs)"
+          color="#F59E0B"
+          height={300}
+        />
+      </div>
+
+      {/* Performance Heatmap */}
+      <HeatmapChart
+        data={heatmapData}
+        title="Committee-Month Performance Heatmap"
+        months={months}
+        committees={committees.map(c => c.name)}
+      />
+
+      {/* Detailed Analytics Table */}
+      <div className="bg-white rounded-lg shadow-lg p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-6">Detailed Committee Analytics</h3>
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Committee
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Achieved 2024-25
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Achievement %
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Receipts
-                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Committee</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Target (L)</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Achieved (L)</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Achievement %</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Receipts</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Avg Transaction</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {analytics.map((item) => (
-                <tr key={item.committee.id}>
+                <tr key={item.committee.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm font-medium text-gray-900">{item.committee.name}</div>
                     <div className="text-sm text-gray-500">{item.committee.code}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    ₹{item.target.toLocaleString()}
+                    ₹{(item.yearlyTarget / 100000).toFixed(2)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    ₹{item.achieved.toLocaleString()}
+                    ₹{(item.achieved / 100000).toFixed(2)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
@@ -178,6 +470,20 @@ const Analytics: React.FC = () => {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {item.receiptCount}
                   </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    ₹{(item.avgTransactionValue / 1000).toFixed(1)}K
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                      item.percentage >= 100 
+                        ? 'bg-green-100 text-green-800'
+                        : item.percentage >= 75
+                          ? 'bg-yellow-100 text-yellow-800'
+                          : 'bg-red-100 text-red-800'
+                    }`}>
+                      {item.percentage >= 100 ? 'Excellent' : item.percentage >= 75 ? 'Good' : 'Needs Improvement'}
+                    </span>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -185,43 +491,34 @@ const Analytics: React.FC = () => {
         </div>
       </div>
 
-      {/* Performance Chart */}
-      <div className="mt-8 bg-white rounded-lg shadow-lg p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-6">Performance Comparison Chart</h3>
-        <div className="space-y-4">
-          {analytics.map((item) => (
-            <div key={item.committee.id} className="flex items-center space-x-4">
-              <div className="w-48 text-sm font-medium text-gray-700 truncate">
-                {item.committee.name}
+      {/* Commodity Analytics */}
+      <div className="bg-white rounded-lg shadow-lg p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-6">Commodity Performance Analysis</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {commodityAnalytics.slice(0, 9).map((item, index) => (
+            <div key={item.commodity} className="bg-gradient-to-r from-blue-50 to-purple-50 p-4 rounded-lg border">
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="font-medium text-gray-900">{item.commodity}</h4>
+                <span className="text-sm font-bold text-purple-600">#{index + 1}</span>
               </div>
-              <div className="flex-1 flex space-x-2">
-                <div className="flex-1">
-                  <div className="flex justify-between text-xs text-gray-600 mb-1">
-                    <span>2024-25</span>
-                    <span>₹{item.target.toLocaleString()}</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-3">
-                    <div
-                      className="bg-blue-600 h-3 rounded-full"
-                      style={{ 
-                        width: `${item.target > 0 ? Math.min((item.achieved / item.target) * 100, 100) : 0}%` 
-                      }}
-                    ></div>
-                  </div>
+              <div className="space-y-1">
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Collection:</span>
+                  <span className="font-medium">₹{(item.totalCollection / 100000).toFixed(2)}L</span>
                 </div>
-                <div className="flex-1">
-                  <div className="flex justify-between text-xs text-gray-600 mb-1">
-                    <span>2025-26</span>
-                    <span>₹{item.target.toLocaleString()}</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-3">
-                    <div
-                      className="bg-green-600 h-3 rounded-full"
-                      style={{ 
-                        width: `${item.target > 0 ? Math.min((item.achieved / item.target) * 100, 100) : 0}%` 
-                      }}
-                    ></div>
-                  </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Receipts:</span>
+                  <span className="font-medium">{item.receiptCount}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Avg Value:</span>
+                  <span className="font-medium">₹{(item.avgTransactionValue / 1000).toFixed(1)}K</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
+                  <div
+                    className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full"
+                    style={{ width: `${Math.min(item.percentage, 100)}%` }}
+                  ></div>
                 </div>
               </div>
             </div>
