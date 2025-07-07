@@ -4,7 +4,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsive
 interface BarChartProps {
   data: any[];
   xKey: string;
-  yKey: string;
+  yKey: string | string[];
   title: string;
   color?: string;
   height?: number;
@@ -18,6 +18,10 @@ const CustomBarChart: React.FC<BarChartProps> = ({
   color = '#3B82F6',
   height = 300
 }) => {
+  // Support grouped/double bar chart if yKey is array
+  const isGrouped = Array.isArray(yKey);
+  const colors = ['#EF4444', '#10B981', '#3B82F6', '#F59E0B']; // Add more if needed
+
   return (
     <div className="bg-white p-6 rounded-lg shadow-lg">
       <h3 className="text-lg font-semibold text-gray-900 mb-4">{title}</h3>
@@ -37,7 +41,18 @@ const CustomBarChart: React.FC<BarChartProps> = ({
             labelStyle={{ color: '#374151' }}
           />
           <Legend />
-          <Bar dataKey={yKey} fill={color} radius={[4, 4, 0, 0]} />
+          {isGrouped
+            ? (yKey as string[]).map((key, idx) => (
+                <Bar
+                  key={key}
+                  dataKey={key}
+                  fill={colors[idx % colors.length]}
+                  radius={[4, 4, 0, 0]}
+                  name={key}
+                />
+              ))
+            : <Bar dataKey={yKey as string} fill={color} radius={[4, 4, 0, 0]} />
+          }
         </BarChart>
       </ResponsiveContainer>
     </div>

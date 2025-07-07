@@ -326,87 +326,72 @@ const Analytics: React.FC = () => {
       {/* Key Metrics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <MetricCard
-          title="Total Collection"
+          title="Total Market Fees Collected"
           value={`₹${(totalCollected / 100000).toFixed(2)}L`}
           change={growthRate}
           changeType={growthRate > 0 ? 'increase' : growthRate < 0 ? 'decrease' : 'neutral'}
           icon={<DollarSign className="w-6 h-6" />}
-          color="#10B981"
+          color="#1D3557"
           subtitle={`Target: ₹${(totalTarget / 100000).toFixed(2)}L`}
         />
         <MetricCard
           title="Achievement Rate"
           value={`${totalTarget > 0 ? ((totalCollected / totalTarget) * 100).toFixed(1) : 0}%`}
           icon={<Target className="w-6 h-6" />}
-          color="#3B82F6"
+          color="#457B9D"
           subtitle="Against yearly target"
         />
         <MetricCard
           title="Total Receipts"
           value={totalReceipts}
           icon={<Activity className="w-6 h-6" />}
-          color="#8B5CF6"
+          color="#A8DADC"
           subtitle="Market fee receipts"
         />
         <MetricCard
-          title="Avg Transaction"
-          value={`₹${(avgTransactionValue / 1000).toFixed(1)}K`}
-          icon={<TrendingUp className="w-6 h-6" />}
-          color="#F59E0B"
-          subtitle="Per receipt"
+          title="Number of Committees"
+          value={committees.length}
+          icon={<Users className="w-6 h-6" />}
+          color="#457B9D"
+          subtitle="Participating AMCs"
         />
       </div>
 
       {/* Charts Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Committee Performance Bar Chart */}
+        {/* Target vs Achieved Double Bar Chart */}
         <CustomBarChart
           data={analytics.map(item => ({
             name: item.committee.code,
-            achieved: item.achieved / 100000,
-            target: item.yearlyTarget / 100000
+            Achieved: item.achieved / 100000,
+            Target: item.yearlyTarget / 100000
           }))}
           xKey="name"
-          yKey="achieved"
-          title="Committee-wise Achievement (Lakhs)"
-          color="#3B82F6"
+          yKey={["Achieved", "Target"]}
+          title="Target vs Achieved (Lakhs)"
+          color="#1D3557"
           height={350}
         />
 
-        {/* Monthly Trends Line Chart */}
-        <CustomLineChart
+        {/* Monthly Trends Double Bar Chart */}
+        <CustomBarChart
           data={monthlyTrends}
           xKey="month"
-          lines={[
-            { key: '2024-25', color: '#EF4444', name: '2024-25' },
-            { key: '2025-26', color: '#10B981', name: '2025-26' }
-          ]}
+          yKey={["2024-25", "2025-26"]}
           title="Monthly Collection Trends (Lakhs)"
+          color="#457B9D"
           height={350}
         />
       </div>
 
-      {/* More Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* Only 2 Tiles: Top Commodities and Top Committee Progress */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Commodity Distribution Pie Chart */}
         <CustomPieChart
           data={commodityAnalytics.slice(0, 8)}
           dataKey="totalCollection"
           nameKey="commodity"
           title="Top Commodities by Collection"
-          height={300}
-        />
-
-        {/* Collection vs Target Donut */}
-        <DonutChart
-          data={[
-            { name: 'Achieved', value: totalCollected / 100000 },
-            { name: 'Remaining', value: Math.max(0, (totalTarget - totalCollected) / 100000) }
-          ]}
-          dataKey="value"
-          nameKey="name"
-          title="Target Achievement"
-          centerText="Total Target"
           height={300}
         />
 
@@ -417,27 +402,14 @@ const Analytics: React.FC = () => {
         />
       </div>
 
-      {/* Area Chart for Cumulative Growth */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <CustomAreaChart
-          data={monthlyTrends.map(item => ({
-            month: item.month,
-            growth: item.growth
-          }))}
-          xKey="month"
-          yKey="growth"
-          title="Month-over-Month Growth Rate (%)"
-          color="#8B5CF6"
-          height={300}
-        />
-
-        {/* Checkpost Performance */}
+      {/* Top Checkpost Performance (Lakhs) - full width */}
+      <div className="grid grid-cols-1 gap-6">
         <CustomBarChart
           data={checkpostPerformance.slice(0, 10)}
           xKey="name"
           yKey="totalCollection"
           title="Top Checkpost Performance (Lakhs)"
-          color="#F59E0B"
+          color="#E63946"
           height={300}
         />
       </div>
@@ -462,7 +434,6 @@ const Analytics: React.FC = () => {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Achieved (L)</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Achievement %</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Receipts</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Avg Transaction</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
               </tr>
             </thead>
@@ -498,9 +469,6 @@ const Analytics: React.FC = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {item.receiptCount}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    ₹{(item.avgTransactionValue / 1000).toFixed(1)}K
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
