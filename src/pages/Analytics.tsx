@@ -35,7 +35,9 @@ const Analytics: React.FC = () => {
   // Calculate comprehensive analytics
   const calculateAnalytics = () => {
     const analytics = committees.map(committee => {
-      const committeeReceipts = marketFeeReceipts.filter(r => r.committeeId === committee.id);
+      const committeeReceipts = marketFeeReceipts.filter(r => 
+        r.committeeId === committee.id && r.financialYear === selectedYear
+      );
       
       // Monthly data
       const monthlyData = months.map(month => {
@@ -61,7 +63,8 @@ const Analytics: React.FC = () => {
       const monthIndex = months.indexOf(selectedMonth);
       const cumulativeMonths = monthIndex >= 0 ? months.slice(0, monthIndex + 1) : [selectedMonth];
       
-      const cumulativeReceipts = committeeReceipts.filter(r => {
+      const cumulativeReceipts = marketFeeReceipts.filter(r => {
+        if (r.committeeId !== committee.id || r.financialYear !== selectedYear) return false;
         const receiptDate = new Date(r.date);
         const receiptMonth = receiptDate.toLocaleString('default', { month: 'long' });
         return cumulativeMonths.includes(receiptMonth);
@@ -93,20 +96,23 @@ const Analytics: React.FC = () => {
 
   // Commodity-wise analytics
   const calculateCommodityAnalytics = () => {
+    const filteredMarketFeeReceipts = marketFeeReceipts.filter(r => r.financialYear === selectedYear);
+    
     return commodities.map(commodity => {
-      const commodityReceipts = marketFeeReceipts.filter(r => r.commodity === commodity);
+      const commodityReceipts = filteredMarketFeeReceipts.filter(r => r.commodity === commodity);
       const totalCollection = commodityReceipts.reduce((sum, r) => sum + r.marketFee, 0);
       const receiptCount = commodityReceipts.length;
       const avgTransactionValue = receiptCount > 0 
         ? commodityReceipts.reduce((sum, r) => sum + r.transactionValue, 0) / receiptCount 
         : 0;
 
+      const totalMarketFee = filteredMarketFeeReceipts.reduce((sum, r) => sum + r.marketFee, 0);
       return {
         commodity,
         totalCollection,
         receiptCount,
         avgTransactionValue,
-        percentage: totalCollection > 0 ? (totalCollection / marketFeeReceipts.reduce((sum, r) => sum + r.marketFee, 0)) * 100 : 0
+        percentage: totalMarketFee > 0 ? (totalCollection / totalMarketFee) * 100 : 0
       };
     }).filter(item => item.totalCollection > 0).sort((a, b) => b.totalCollection - a.totalCollection);
   };
@@ -117,13 +123,15 @@ const Analytics: React.FC = () => {
       const monthReceipts2024 = receipts.filter(r => {
         const receiptDate = new Date(r.date);
         const receiptMonth = receiptDate.toLocaleString('default', { month: 'long' });
-        return r.financialYear === '2024-25' && receiptMonth === month && r.natureOfReceipt === 'mf';
+        return r.financialYear === '2024-25' && receiptMonth === month && r.natureOfReceipt === 'mf' &&
+               (selectedCommittee === 'all' || r.committeeId === selectedCommittee);
       });
 
       const monthReceipts2025 = receipts.filter(r => {
         const receiptDate = new Date(r.date);
         const receiptMonth = receiptDate.toLocaleString('default', { month: 'long' });
-        return r.financialYear === '2025-26' && receiptMonth === month && r.natureOfReceipt === 'mf';
+        return r.financialYear === '2025-26' && receiptMonth === month && r.natureOfReceipt === 'mf' &&
+               (selectedCommittee === 'all' || r.committeeId === selectedCommittee);
       });
 
       const collection2024 = monthReceipts2024.reduce((sum, r) => sum + r.marketFee, 0);
@@ -142,7 +150,11 @@ const Analytics: React.FC = () => {
   const calculateCheckpostPerformance = () => {
     const checkpostData: any[] = [];
     
-    committees.forEach(committee => {
+    const committeesToAnalyze = selectedCommittee === 'all' 
+      ? committees 
+      : committees.filter(c => c.id === selectedCommittee);
+    
+    committeesToAnalyze.forEach(committee => {
       if (committee.hasCheckposts) {
         committee.checkposts.forEach(checkpost => {
           const checkpostReceipts = marketFeeReceipts.filter(r => 
@@ -173,16 +185,19 @@ const Analytics: React.FC = () => {
   const calculateHeatmapData = () => {
     const heatmapData: any[] = [];
     
-    committees.forEach(committee => {
+      const committeeReceipts = marketFeeReceipts.filter(r => 
+        r.committeeId === committee.id && r.financialYear === selectedYear
+      );
       months.forEach(month => {
         const monthReceipts = marketFeeReceipts.filter(r => {
           const receiptDate = new Date(r.date);
           const receiptMonth = receiptDate.toLocaleString('default', { month: 'long' });
           return r.committeeId === committee.id && receiptMonth === month;
         });
+          if (r.committeeId !== committee.id || r.financialYear !== selectedYear) return false;
 
         const collected = monthReceipts.reduce((sum, r) => sum + r.marketFee, 0);
-        const target = targets.find(t => t.committeeId === committee.id && t.financialYear === selectedYear)?.monthlyTargets[month] || 0;
+          return receiptMonth === month;
         const percentage = target > 0 ? (collected / target) * 100 : 0;
 
         heatmapData.push({
@@ -201,28 +216,37 @@ const Analytics: React.FC = () => {
   const commodityAnalytics = calculateCommodityAnalytics();
   const monthlyTrends = calculateMonthlyTrends();
   const checkpostPerformance = calculateCheckpostPerformance();
-  const heatmapData = calculateHeatmapData();
+    const committeesToAnalyze = selectedCommittee === 'all' 
+      ? committees 
+      : committees.filter(c => c.id === selectedCommittee);
+    
+    committeesToAnalyze.forEach(committee => {
 
   // Summary calculations
   const totalCollected = analytics.reduce((sum, a) => sum + a.achieved, 0);
   const totalTarget = analytics.reduce((sum, a) => sum + a.yearlyTarget, 0);
-  const totalReceipts = marketFeeReceipts.length;
+  const totalReceipts = filteredReceipts.filter(r => r.natureOfReceipt === 'mf').length;
   const avgTransactionValue = totalReceipts > 0 
-    ? marketFeeReceipts.reduce((sum, r) => sum + r.transactionValue, 0) / totalReceipts 
+    ? filteredReceipts.filter(r => r.natureOfReceipt === 'mf').reduce((sum, r) => sum + r.transactionValue, 0) / totalReceipts 
     : 0;
 
   // Growth calculations
-  const prevYearReceipts = receipts.filter(r => r.financialYear === '2024-25' && r.natureOfReceipt === 'mf');
+  const prevYear = selectedYear === '2025-26' ? '2024-25' : '2023-24';
+  const prevYearReceipts = receipts.filter(r => 
+    r.financialYear === prevYear && 
+    r.natureOfReceipt === 'mf' &&
+    (selectedCommittee === 'all' || r.committeeId === selectedCommittee)
+  );
   const prevYearTotal = prevYearReceipts.reduce((sum, r) => sum + r.marketFee, 0);
   const growthRate = prevYearTotal > 0 ? ((totalCollected - prevYearTotal) / prevYearTotal) * 100 : 0;
 
   // Progress data for committees
-  const progressData = analytics.map(item => ({
+  const progressData = analytics.filter(item => item.achieved > 0).map(item => ({
     name: item.committee.code,
     achieved: item.achieved,
     target: item.yearlyTarget,
     color: item.percentage >= 100 ? '#10B981' : item.percentage >= 75 ? '#F59E0B' : '#EF4444'
-  }));
+  })).sort((a, b) => b.achieved - a.achieved);
 
   return (
     <div className="max-w-full mx-auto p-4 lg:p-6 space-y-6">
