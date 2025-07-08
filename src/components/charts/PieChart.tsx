@@ -42,47 +42,39 @@ const CustomPieChart: React.FC<PieChartProps> = ({
   };
 
   return (
-    <div className="bg-white p-6 rounded-lg shadow-lg h-full">
+    <div className="bg-white p-6 rounded-lg shadow-lg h-full flex flex-col">
       <h3 className="text-lg font-semibold text-gray-900 mb-4">{title}</h3>
-      <div className="flex flex-col h-full">
-        <div className="flex-1 flex items-center justify-center">
-          <ResponsiveContainer width="100%" height={280}>
-            <PieChart>
-              <Pie
-                data={data}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                label={renderCustomizedLabel}
-                outerRadius={100}
-                fill="#8884d8"
-                dataKey={dataKey}
-              >
-                {data.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
-                ))}
-              </Pie>
-              <Tooltip 
-                formatter={(value: any) => [`₹${Number(value).toLocaleString()}`, 'Amount']}
-              />
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
-        
-        {/* Custom Legend with Colors */}
-        <div className="mt-4 grid grid-cols-1 gap-2 max-h-32 overflow-y-auto">
-          {data.map((entry, index) => (
-            <div key={index} className="flex items-center text-sm">
-              <div 
-                className="w-3 h-3 rounded-full mr-2 flex-shrink-0"
-                style={{ backgroundColor: colors[index % colors.length] }}
-              ></div>
-              <span className="text-gray-700 truncate" title={entry[nameKey]}>
-                {entry[nameKey]}
-              </span>
-            </div>
-          ))}
-        </div>
+      <div className="flex-1 flex items-center justify-center">
+        <ResponsiveContainer width={260} height={260}>
+          <PieChart>
+            <Pie
+              data={data}
+              cx="50%"
+              cy="50%"
+              labelLine={false}
+              label={renderCustomizedLabel}
+              outerRadius={110}
+              fill="#8884d8"
+              dataKey={dataKey}
+            >
+              {data.map((entry, index) => (
+                <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
+              ))}
+            </Pie>
+            <Tooltip 
+              formatter={(value: any) => [`₹${Number(value).toLocaleString()}`, 'Amount']}
+            />
+          </PieChart>
+        </ResponsiveContainer>
+      </div>
+      {/* Custom Legend below chart */}
+      <div className="flex flex-wrap justify-center mt-4 gap-3">
+        {data.map((entry, idx) => (
+          <div className="flex items-center" key={idx}>
+            <span className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: colors[idx % colors.length] }}></span>
+            <span className="text-sm text-gray-700">{entry[nameKey]}</span>
+          </div>
+        ))}
       </div>
     </div>
   );

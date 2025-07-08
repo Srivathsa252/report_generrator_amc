@@ -421,11 +421,11 @@ const Analytics: React.FC = () => {
         </div>
 
         {/* Committee Progress */}
-        <div className="bg-white p-6 rounded-lg shadow-lg" style={{ minHeight: '400px' }}>
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">Committee Progress</h3>
-          <div className="h-full">
+        <div className="bg-white p-6 rounded-lg shadow-lg h-full flex flex-col justify-between" style={{ minHeight: 340 }}>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Committee Progress</h3>
+          <div className="flex-1" style={{ width: '100%', overflowY: 'auto', margin: 0, padding: 0 }}>
             <ProgressChart
-              data={progressData}
+              data={progressData.slice(0, 4)}
               title=""
             />
           </div>
